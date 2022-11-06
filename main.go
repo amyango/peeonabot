@@ -61,7 +61,6 @@ func cleanup() {
 }
 
 func main(){
-
 	// Set up logging
 	logInit()
 
@@ -100,16 +99,12 @@ func main(){
 	bot.Close()
 }
 
-func ready(s *discordgo.Session, event *discordgo.Ready) {
-	fmt.Println("Ready!")
-}
-
+// Monitor messages sent in the server
 func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 	log.Println("Peeona bot got a message: " + m.Content)
 
-	// Ignore if message is from myself
-	if m.Author.ID == s.State.User.ID {
-		log.Println("Ignoring message from self")
+	// Ignore messages from bots
+	if m.Author.Bot {
 		return
 	}
 
@@ -118,3 +113,4 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 		return
 	}
 }
+
