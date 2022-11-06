@@ -1,14 +1,4 @@
 #!/bin/bash
 
-BASEPATH="/Users/amandaliem/git/peeonabot"
-
-function killall {
-	pids=$(ls $BASEPATH/pids)
-	
-	for pid in $pids; do
-		kill $pid
-	done
-}
-
-[[ -d $BASEPATH/pids ]] && killall
-go run $BASEPATH/main.go &
+docker rm -f peeonabot
+docker run --name peeonabot -d --rm -it $(docker build -q .)

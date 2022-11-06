@@ -7,7 +7,6 @@ import(
 	"os/signal"
 	"strings"
 	"syscall"
-	"strconv"
 	"log"
 )
 
@@ -17,7 +16,7 @@ func usage_exit(msg string) {
 }
 
 var (
-	baseDir string = "/Users/amandaliem/git/peeonabot/"
+	baseDir string = "./"
 	tokenFile string = baseDir + "credentials/discord.token"
 	logFile string = baseDir + "log.txt"
 )
@@ -31,41 +30,7 @@ func getToken() string {
 	return strings.Trim(string(contents), "\n")
 }
 
-// Sets up logging file
-func logInit() {
-	file, err := os.OpenFile(logFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
-	if err != nil {
-		log.Fatal(err)
-	}
-	log.SetOutput(file)
-}
-
-// Sets up PID file
-func pidInit() {
-	// clear out the pid directory
-	os.RemoveAll(baseDir + "pids/")
-	err := os.Mkdir(baseDir + "pids", os.ModePerm)
-	if err != nil {
-		log.Fatal(err)
-	}
-	_, err = os.Create(baseDir + "pids/" + strconv.Itoa(os.Getpid()))
-	if err != nil {
-		log.Fatal(err)
-	}
-}
-
-// Performs Cleanup
-func cleanup() {
-	// clear out the pid directory
-	os.RemoveAll(baseDir + "pids/")
-}
-
 func main(){
-	// Set up logging
-	logInit()
-
-	// Set up Pidfile
-	pidInit()
 
 	// Create bot
 	bot, err := discordgo.New("Bot " + getToken())
@@ -95,7 +60,6 @@ func main(){
 
 	// Kill the bot
 	log.Println("Peeona Bot is now sleeping")
-	cleanup()
 	bot.Close()
 }
 
