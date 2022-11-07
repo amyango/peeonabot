@@ -1,7 +1,7 @@
 # peeonabot
 
 ## Requirements
-- Docker
+- Docker  
 This is how I did it for OSX:
 ```
 brew install golang
