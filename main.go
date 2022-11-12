@@ -76,5 +76,25 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 		s.ChannelMessageSend(m.ChannelID, "woof woof")
 		return
 	}
+
+	if strings.HasPrefix(m.Content, "/movie") {
+		doMovies(s, m)
+		return
+	}
+
 }
 
+func doMovies(s *discordgo.Session, m *discordgo.MessageCreate) {
+	args := strings.Split(m.Content, " ")
+	movies := Find_movies(args[1:])
+	if (len(movies) <= 0) {
+		s.ChannelMessageSend(m.ChannelID, "No results found")
+		return
+	}
+	movie := movies[0]
+	response := fmt.Sprintf("[%s] %s (%v)", movie.Release_date, movie.Original_title, movie.Vote_average)
+	s.ChannelMessageSend(m.ChannelID, response)
+	if movie.Poster_path != "" {
+		s.ChannelMessageSend(m.ChannelID, "https://image.tmdb.org/t/p/original/" + movie.Poster_path)
+	}
+}
