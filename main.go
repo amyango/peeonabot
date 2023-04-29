@@ -1,13 +1,20 @@
 package main
 
-import(
+import (
+	"context"
 	"fmt"
-	"github.com/bwmarrin/discordgo"
+	"log"
+	"math/rand"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"syscall"
-	"log"
+	"time"
+
+	"github.com/astralservices/go-dalle"
+	"github.com/ayush6624/go-chatgpt"
+	"github.com/bwmarrin/discordgo"
 )
 
 func usage_exit(msg string) {
@@ -16,9 +23,13 @@ func usage_exit(msg string) {
 }
 
 var (
-	baseDir string = "./"
-	tokenFile string = baseDir + "credentials/discord.token"
-	logFile string = baseDir + "log.txt"
+	baseDir          string = "./"
+	tokenFile        string = baseDir + "credentials/discord.token"
+	openAPITokenFile string = baseDir + "credentials/openai.token"
+	logFile          string = baseDir + "log.txt"
+	openAPIToken     string
+	dalbby           dalle.Client
+	gptbby           *chatgpt.Client
 )
 
 // Reads file discord.token and returns the discord bot token
@@ -30,7 +41,20 @@ func getToken() string {
 	return strings.Trim(string(contents), "\n")
 }
 
-func main(){
+func getOpenAIToken() string {
+	contents, err := os.ReadFile(openAPITokenFile)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return strings.Trim(string(contents), "\n")
+}
+
+func main() {
+	var err error
+
+	openAPIToken = getOpenAIToken()
+	dalbby = dalle.NewClient(openAPIToken)
+	gptbby, err = chatgpt.NewClient(openAPIToken)
 
 	// Create bot
 	bot, err := discordgo.New("Bot " + getToken())
@@ -66,11 +90,16 @@ func main(){
 // Monitor messages sent in the server
 func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 	log.Println("Peeona bot got a message: " + m.Content)
+	log.Println("The channelID is: " + m.ChannelID)
 
 	// Ignore messages from bots
 	if m.Author.Bot {
 		return
 	}
+
+	//if m.ChannelID != "1066254778742616084" {
+	//	return
+	//}
 
 	if strings.HasPrefix(m.Content, "/pp") {
 		s.ChannelMessageSend(m.ChannelID, "woof woof")
@@ -82,12 +111,153 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 		return
 	}
 
+	if strings.HasPrefix(m.Content, "/dalle") {
+		doDalle(s, m)
+		return
+	}
+
+	if strings.HasPrefix(m.Content, "/ask") {
+		doGPT(s, m)
+	}
+
+	if strings.HasPrefix(m.Content, "$n") {
+		doNumbers(s, m)
+		return
+	}
+
+	if strings.HasPrefix(m.Content, "/t") {
+		changeTime(s, m)
+		return
+	}
+}
+
+func doGPT(s *discordgo.Session, m *discordgo.MessageCreate) {
+	args := strings.Split(m.Content, " ")
+	if len(args) < 2 {
+		s.ChannelMessageSend(m.ChannelID, "/dalle <stuff>")
+		return
+	}
+
+	desc := args[1:]
+	resp, err := askPeeona(chatgpt.GPT35Turbo, strings.Join(desc, " "))
+
+	if err != nil {
+		s.ChannelMessageSend(m.ChannelID, "Donowalled by ChatGPT")
+		fmt.Println(err)
+	} else {
+		s.ChannelMessageSend(m.ChannelID, resp)
+	}
+}
+
+func askPeeona(model chatgpt.ChatGPTModel, question string) (string, error) {
+	req := chatgpt.ChatCompletionRequest{
+		Model: model,
+		Messages: []chatgpt.ChatMessage{
+			{
+				Role:    chatgpt.ChatGPTModelRoleSystem,
+				Content: question,
+			},
+		},
+	}
+
+	ctx := context.Background()
+	res, err := gptbby.Send(ctx, &req)
+	resp := ""
+
+	if err != nil {
+		return "", err
+	} else {
+		for _, choice := range res.Choices {
+			resp = fmt.Sprintf("%v %v", resp, choice.Message.Content)
+		}
+	}
+
+	return resp, nil
+}
+
+func doDalle(s *discordgo.Session, m *discordgo.MessageCreate) {
+	args := strings.Split(m.Content, " ")
+	if len(args) < 2 {
+		s.ChannelMessageSend(m.ChannelID, "/dalle <stuff>")
+		return
+	}
+
+	desc := args[1:]
+	msg := fmt.Sprintf("Thinking about %v...", strings.Join(desc, " "))
+	s.ChannelMessageSend(m.ChannelID, msg)
+	data, err := dalbby.Generate(strings.Join(desc, " "), nil, nil, nil, nil)
+
+	if err != nil {
+		fmt.Println(err)
+	} else {
+		s.ChannelMessageSend(m.ChannelID, data[0].URL)
+	}
+}
+
+var num string = ""
+var ms int = 750
+
+func changeTime(s *discordgo.Session, m *discordgo.MessageCreate) {
+
+	args := strings.Split(m.Content, " ")
+
+	if len(args) < 2 {
+		s.ChannelMessageSend(m.ChannelID, "/t <time in millisecs>")
+		return
+	}
+
+	i, err := strconv.Atoi(args[1])
+
+	if err != nil {
+		s.ChannelMessageSend(m.ChannelID, "/t <time in millisecs>")
+		return
+	}
+
+	ms = i
+	s.ChannelMessageSend(m.ChannelID, "$n time is now "+args[1])
+}
+
+func doNumbers(s *discordgo.Session, m *discordgo.MessageCreate) {
+
+	if num == "" {
+
+		numstr := ""
+		ch := m.ChannelID
+
+		for i := 0; i < 8; i++ {
+			numstr = numstr + strconv.Itoa(rand.Intn(10))
+		}
+
+		msg, _ := s.ChannelMessageSend(m.ChannelID, numstr)
+		num = numstr
+
+		time.Sleep(time.Duration(ms) * time.Millisecond)
+
+		r := "XXXXXXXX"
+		s.ChannelMessageEdit(ch, msg.ID, r)
+	} else {
+		// compare
+		args := strings.Split(m.Content, " ")
+
+		if len(args) < 2 {
+			s.ChannelMessageSend(m.ChannelID, "please type the number")
+			return
+		}
+
+		if num == args[1] {
+			s.ChannelMessageSend(m.ChannelID, "CORRECT!!!")
+		} else {
+			s.ChannelMessageSend(m.ChannelID, "Wrong it was "+num)
+		}
+
+		num = ""
+	}
 }
 
 func doMovies(s *discordgo.Session, m *discordgo.MessageCreate) {
 	args := strings.Split(m.Content, " ")
 	movies := Find_movies(args[1:])
-	if (len(movies) <= 0) {
+	if len(movies) <= 0 {
 		s.ChannelMessageSend(m.ChannelID, "No results found")
 		return
 	}
@@ -95,6 +265,6 @@ func doMovies(s *discordgo.Session, m *discordgo.MessageCreate) {
 	response := fmt.Sprintf("[%s] %s (%v)", movie.Release_date, movie.Original_title, movie.Vote_average)
 	s.ChannelMessageSend(m.ChannelID, response)
 	if movie.Poster_path != "" {
-		s.ChannelMessageSend(m.ChannelID, "https://image.tmdb.org/t/p/original/" + movie.Poster_path)
+		s.ChannelMessageSend(m.ChannelID, "https://image.tmdb.org/t/p/original/"+movie.Poster_path)
 	}
 }

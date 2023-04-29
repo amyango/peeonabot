@@ -1,3 +1,7 @@
+github.com/astralservices/go-dalle v1.0.0 h1:0OgB+pWhPOkkH0xK/hMbvdk/f1jp7A75YBeDT6zXW94=
+github.com/astralservices/go-dalle v1.0.0/go.mod h1:QArK2mSbJElwZ05xx6Za1DiAFTmsxFkDha3Wuh5FOJg=
+github.com/ayush6624/go-chatgpt v0.2.0 h1:G3aug+xK5tJcxCSQd7AnRIWGrfrWacl39A9fmsnjZOk=
+github.com/ayush6624/go-chatgpt v0.2.0/go.mod h1:aFDfQLN+MW3D3aKvuVU72EigsiUYQN49wsVlAORiWDA=
 github.com/bwmarrin/discordgo v0.26.1 h1:AIrM+g3cl+iYBr4yBxCBp9tD9jR3K7upEjl0d89FRkE=
 github.com/bwmarrin/discordgo v0.26.1/go.mod h1:NJZpH+1AfhIcyQsPeuBKsUtYrRnjkyu0kIVMCHkZtRY=
 github.com/gorilla/websocket v1.4.2 h1:+/TMaTYc4QFitKJxsQ7Yye35DkWvkdLcvGKqM+x0Ufc=
