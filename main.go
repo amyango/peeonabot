@@ -12,9 +12,10 @@ import (
 	"syscall"
 	"time"
 
+	"discordgo"
+
 	"github.com/astralservices/go-dalle"
 	"github.com/ayush6624/go-chatgpt"
-	"github.com/bwmarrin/discordgo"
 )
 
 func usage_exit(msg string) {
@@ -30,6 +31,7 @@ var (
 	openAPIToken     string
 	dalbby           dalle.Client
 	gptbby           *chatgpt.Client
+	globalSession    *discordgo.Session
 )
 
 // Reads file discord.token and returns the discord bot token
@@ -65,6 +67,9 @@ func main() {
 	// Output Ready Status
 	bot.AddHandler(func(s *discordgo.Session, r *discordgo.Ready) {
 		log.Printf("Logged in as: %v#%v\n", s.State.User.Username, s.State.User.Discriminator)
+
+		globalSession = s
+
 	})
 	bot.AddHandler(messageCreate)
 	bot.Identify.Intents = discordgo.IntentsGuildMessages
@@ -89,8 +94,8 @@ func main() {
 
 // Monitor messages sent in the server
 func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
-	log.Println("Peeona bot got a message: " + m.Content)
-	log.Println("The channelID is: " + m.ChannelID)
+	//log.Println("Peeona bot got a message: " + m.Content)
+	//log.Println("The channelID is: " + m.ChannelID)
 
 	// Ignore messages from bots
 	if m.Author.Bot {
@@ -129,6 +134,79 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 		changeTime(s, m)
 		return
 	}
+
+	if strings.HasPrefix(m.Content, "/squat") {
+		doSquats(s, m)
+		return
+	}
+
+	if strings.HasPrefix(m.Content, "/squad") {
+		printSquats(s, m)
+		return
+	}
+}
+
+func printSquats(s *discordgo.Session, m *discordgo.MessageCreate) {
+	g := GetGuildByID(s, m)
+
+	embed := discordgo.MessageEmbed{
+		Title:       "Big Booty Squad :peach:",
+		Description: "Add squats with the /squat command!\nIf you do even one squat, you're added to the BBC role for the day :)",
+	}
+
+	for _, squatter := range g.Squatters {
+		msg := fmt.Sprintf("Today Squats: %v\nLifetime Squats: %v", squatter.TodaySquats, squatter.TotalSquats)
+		name := squatter.UserName
+		if squatter.MaxWeight > 0 {
+			msg = fmt.Sprintf("Today Squats: %v/%vlbs\nLifetime Squats: %v/%vlbs",
+				squatter.TodaySquats, squatter.TodayWeight, squatter.TotalSquats, squatter.TotalWeight)
+
+			for i := 0; i < squatter.TotalSquats/1000; i++ {
+				name = fmt.Sprintf("%v :peach:", name)
+			}
+			name = fmt.Sprintf("%v [%v lbs]", name, squatter.MaxWeight)
+		} else {
+
+		}
+
+		embed.Fields = append(embed.Fields, &discordgo.MessageEmbedField{
+			Name:   name,
+			Value:  msg,
+			Inline: true,
+		})
+	}
+
+	s.ChannelMessageSendEmbed(m.ChannelID, &embed)
+}
+
+func doSquats(s *discordgo.Session, m *discordgo.MessageCreate) {
+
+	w := 0
+
+	resp := strings.Split(m.Content, " ")
+	if len(resp) < 2 {
+		s.ChannelMessageSend(m.ChannelID, "do /squat <# of squats> <weight (optional)>")
+		return
+	}
+
+	n, err := strconv.Atoi(resp[1])
+	if err != nil {
+		s.ChannelMessageSend(m.ChannelID, "do /squat <# of squats> <weight (optional)>")
+		return
+	}
+
+	if len(resp) > 2 {
+		weight, err := strconv.Atoi(resp[2])
+		if err != nil {
+			s.ChannelMessageSend(m.ChannelID, "do /squat <# of squats> <weight (optional)>")
+			return
+		}
+		w = weight
+	}
+
+	g := GetGuildByID(s, m)
+	g.Squat(*m.Author, n, w, s)
+	s.ChannelMessageSend(m.ChannelID, "nice")
 }
 
 func doGPT(s *discordgo.Session, m *discordgo.MessageCreate) {

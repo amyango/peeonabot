@@ -9,7 +9,7 @@ function usage_exit {
 
 function deploy {
 	docker rm -f peeonabot-$1
-	docker run --name peeonabot-$1 -d -it $(docker build -q -f Dockerfile.$1 .)
+	docker run -v $(pwd)/db-$1:/app/db --name peeonabot-$1 -d -it $(docker build -q -f Dockerfile.$1 .)
 	exit 0
 }
 
